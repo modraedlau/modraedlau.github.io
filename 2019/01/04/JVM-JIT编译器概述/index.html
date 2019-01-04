@@ -3,15 +3,20 @@
 <head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="utf-8">
   
-  <title>Modraed Lau&#39;s blog</title>
+  <title>JVM JIT编译器概述 | Modraed Lau&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Modraed Lau&#39;s blog">
-<meta property="og:url" content="http://yoursite.com/index.html">
+  <meta name="description" content="静态编译 vs 动态编译（AOT vs JIT）静态编译 又称 “Ahead-Of-Time”(AOT) 编译 过程：源代码 -&amp;gt; 可执行码 大多数编译工作都在执行之前完成 可以利用复杂而繁重的分析和优化 但是静态信息有时是不够的 而且很难猜出实际的应用程序行为   无法利用特定平台功能，比如：SSE4.2 / AVX / AVX2，TSX，AES-NI，RdRand  动态编译（现代Jav">
+<meta name="keywords" content="JVM JIT">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM JIT编译器概述">
+<meta property="og:url" content="http://yoursite.com/2019/01/04/JVM-JIT编译器概述/index.html">
 <meta property="og:site_name" content="Modraed Lau&#39;s blog">
+<meta property="og:description" content="静态编译 vs 动态编译（AOT vs JIT）静态编译 又称 “Ahead-Of-Time”(AOT) 编译 过程：源代码 -&amp;gt; 可执行码 大多数编译工作都在执行之前完成 可以利用复杂而繁重的分析和优化 但是静态信息有时是不够的 而且很难猜出实际的应用程序行为   无法利用特定平台功能，比如：SSE4.2 / AVX / AVX2，TSX，AES-NI，RdRand  动态编译（现代Jav">
 <meta property="og:locale" content="default">
+<meta property="og:updated_time" content="2019-01-04T08:26:22.876Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Modraed Lau&#39;s blog">
+<meta name="twitter:title" content="JVM JIT编译器概述">
+<meta name="twitter:description" content="静态编译 vs 动态编译（AOT vs JIT）静态编译 又称 “Ahead-Of-Time”(AOT) 编译 过程：源代码 -&amp;gt; 可执行码 大多数编译工作都在执行之前完成 可以利用复杂而繁重的分析和优化 但是静态信息有时是不够的 而且很难猜出实际的应用程序行为   无法利用特定平台功能，比如：SSE4.2 / AVX / AVX2，TSX，AES-NI，RdRand  动态编译（现代Jav">
   
     <link rel="alternate" href="/atom.xml" title="Modraed Lau&#39;s blog" type="application/atom+xml">
   
@@ -64,9 +69,7 @@
   </div>
 </header>
       <div class="outer">
-        <section id="main">
-  
-    <article id="post-JVM-JIT编译器概述" class="article article-type-post" itemscope="" itemprop="blogPost">
+        <section id="main"><article id="post-JVM-JIT编译器概述" class="article article-type-post" itemscope="" itemprop="blogPost">
   <div class="article-meta">
     <a href="/2019/01/04/JVM-JIT编译器概述/" class="article-date">
   <time datetime="2019-01-04T06:25:33.000Z" itemprop="datePublished">2019-01-04</time>
@@ -83,8 +86,8 @@
       <header class="article-header">
         
   
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/01/04/JVM-JIT编译器概述/">JVM JIT编译器概述</a>
+    <h1 class="article-title" itemprop="name">
+      JVM JIT编译器概述
     </h1>
   
 
@@ -181,10 +184,64 @@
     </footer>
   </div>
   
+    
+ <script src="/jquery/jquery.min.js"></script>
+  <div id="random_posts">
+    <h2>推荐文章</h2>
+    <div class="random_posts_ul">
+      <script>
+          var random_count =4
+          var site = {BASE_URI:'/'};
+          function load_random_posts(obj) {
+              var arr=site.posts;
+              if (!obj) return;
+              // var count = $(obj).attr('data-count') || 6;
+              for (var i, tmp, n = arr.length; n; i = Math.floor(Math.random() * n), tmp = arr[--n], arr[n] = arr[i], arr[i] = tmp);
+              arr = arr.slice(0, random_count);
+              var html = '<ul>';
+            
+              for(var j=0;j<arr.length;j++){
+                var item=arr[j];
+                html += '<li><strong>' + 
+                item.date + ':&nbsp;&nbsp;<a href="' + (site.BASE_URI+item.uri) + '">' + 
+                (item.title || item.uri) + '</a></strong>';
+                if(item.excerpt){
+                  html +='<div class="post-excerpt">'+item.excerpt+'</div>';
+                }
+                html +='</li>';
+                
+              }
+              $(obj).html(html + '</ul>');
+          }
+          $('.random_posts_ul').each(function () {
+              var c = this;
+              if (!site.posts || !site.posts.length){
+                  $.getJSON(site.BASE_URI + 'js/posts.js',function(json){site.posts = json;load_random_posts(c)});
+              } 
+               else{
+                load_random_posts(c);
+              }
+          });
+      </script>
+    </div>
+  </div>
+
+    
+  
 </article>
  
-
-
+     
+  <div class="comments" id="comments">
+    
+     
+       
+      <div id="cloud-tie-wrapper" class="cloud-tie-wrapper"></div>
+    
+       
+      
+      
+  </div>
+ 
   
 
 </section>
@@ -192,49 +249,26 @@
     <aside id="sidebar">
   
     
-  
+    <div class="widget-wrap">
     
-  <div class="widget-wrap">
-    <h3 class="widget-title categories">分类</h3>
-    <div class="widget" id="categories">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/JVM/">JVM</a><span class="category-list-count">1</span></li></ul>
+      <div class="widget" id="toc-widget-fixed">
+      
+        <strong class="toc-title">文章目录</strong>
+        <div class="toc-widget-list">
+              <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#静态编译-vs-动态编译（AOT-vs-JIT）"><span class="toc-number">1.</span> <span class="toc-text">静态编译 vs 动态编译（AOT vs JIT）</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#静态编译"><span class="toc-number">1.1.</span> <span class="toc-text">静态编译</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#动态编译（现代Java虚拟机使用动态编译）"><span class="toc-number">1.2.</span> <span class="toc-text">动态编译（现代Java虚拟机使用动态编译）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Profiling"><span class="toc-number">1.3.</span> <span class="toc-text">Profiling</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#乐观的编译器（Optimistic-Compilers）"><span class="toc-number">1.4.</span> <span class="toc-text">乐观的编译器（Optimistic Compilers）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Profile引导优化（Profile-guided-optimizations-PGO-）"><span class="toc-number">1.5.</span> <span class="toc-text">Profile引导优化（Profile-guided optimizations (PGO)）</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#乐观的编译器例子"><span class="toc-number">1.6.</span> <span class="toc-text">乐观的编译器例子</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#J-VM中的动态编译"><span class="toc-number">2.</span> <span class="toc-text">(J)VM中的动态编译</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#动态编译（JIT）"><span class="toc-number">2.1.</span> <span class="toc-text">动态编译（JIT）</span></a></li></ol></li></ol>
+          </div>
+      </div>
     </div>
-  </div>
-
-
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title tagcloud">标签云</h3>
-    <div class="widget tagcloud">
-      <a href="/tags/JVM-JIT/" style="font-size: 14px;">JVM JIT</a>
-    </div>
-  </div>
 
   
     
-  <div class="widget-wrap">
-    <h3 class="widget-title recent-posts">最新文章</h3>
-    <div class="widget">
-      <ul>
-        
-          <li>
-            <a href="/2019/01/04/JVM-JIT编译器概述/">JVM JIT编译器概述</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
 
   
     
-  <div class="widget-wrap">
-    <h3 class="widget-title archive">归档</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">January 2019</a><span class="archive-list-count">1</span></li></ul>
-    </div>
-  </div>
-
+  
+    
+  
+    
 
   
 </aside>

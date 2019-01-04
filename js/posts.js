@@ -1,1 +1,1 @@
-[{"title":"Hello World","date":"2019.01.04","uri":"2019/01/04/hello-world/","excerpt":""}]
+[{"title":"JVM JIT编译器概述","date":"2019.01.04","uri":"2019/01/04/JVM-JIT编译器概述/","excerpt":""}]
