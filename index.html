@@ -66,6 +66,63 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-ArrayList的迭代删除" class="article article-type-post" itemscope="" itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2019/01/10/ArrayList的迭代删除/" class="article-date">
+  <time datetime="2019-01-10T09:27:46.000Z" itemprop="datePublished">2019-01-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Java并发编程/">Java并发编程</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/01/10/ArrayList的迭代删除/">ArrayList的迭代删除</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- Table of Contents -->
+        
+        <h2 id="引子"><a href="#引子" class="headerlink" title="引子"></a>引子</h2><p>今天遇到一个问题，就是在使用ArrayList迭代删除出现问题，算是很常见的问题，我知道怎么写是正确的，但是一直不知道为什么会这样，今天我就把这个问题稍微研究深入一点，甚至从JDK的设计思路来想下为什么要这么设计。<br>先从问题开始，示例代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">    ArrayList&lt;String&gt; list = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">    list.add(<span class="string">"a"</span>);</span><br><span class="line">    list.add(<span class="string">"b"</span>);</span><br><span class="line">    list.add(<span class="string">"c"</span>);</span><br><span class="line"></span><br><span class="line">    Iterator&lt;String&gt; it = list.iterator();</span><br><span class="line">    <span class="keyword">while</span> (it.hasNext()) &#123;</span><br><span class="line">      <span class="comment">// it.remove(); // IllegalStateException</span></span><br><span class="line">      list.remove(it.next()); <span class="comment">// ConcurrentModificationException</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>貌似在迭代中，怎么删除都异常，使用使用迭代器删除抛出IllegalStateException，list本身删除抛出ConcurrentModificationException。<br>使用迭代器删除为什么会出现IllegalStateException呢，我们来看下在ArrayList实现的迭代器源码remove方法开始部分：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (lastRet &lt; <span class="number">0</span>)</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException();</span><br></pre></td></tr></table></figure></p>
+<p>原来是指向不正确，明眼人马上就看出来了正确删除写法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Iterator&lt;String&gt; it = list.iterator();</span><br><span class="line"><span class="keyword">while</span> (it.hasNext()) &#123;</span><br><span class="line">    it.next();</span><br><span class="line">    it.remove(); <span class="comment">// OK</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>那么直接使用list删除就必然出现ConcurrentModificationException吗，其实不然，下面展示一些：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">Iterator&lt;String&gt; it = list.iterator();</span><br><span class="line"><span class="keyword">while</span> (it.hasNext()) &#123;</span><br><span class="line">  list.remove(<span class="string">"a"</span>); <span class="comment">// OK</span></span><br><span class="line">  <span class="keyword">break</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>那为什么list.remove(it.next());就会出现异常呢，为什么会这样？还是要到ArrayList的源码中去看，ArrayList的迭代器next方法在最开始的时候都会checkForComodification：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> E <span class="title">next</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    checkForComodification();</span><br></pre></td></tr></table></figure></p>
+<p>那我们继续跟进行checkForComodification方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">void</span> <span class="title">checkForComodification</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (modCount != expectedModCount)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ConcurrentModificationException();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>再根据上下文我们知道这个modCount表示的实际修改的次数，而expectedModCount表示预计修改的次数，如果不相等就会发生ConcurrentModificationException。</p>
+<p>这会我们来debug下，添加三个元素后迭代开始时，debug可以的代：<strong>modCount = 3, expectedModCount = 3</strong>；<br>接下来我们使用list.remove一次，再进入这里可以发现：<strong>modCount = 4, expectedModCount = 3</strong>；<br>这说明多了一次修改！然后迭代器在next方法内checkForComodification时抛出ConcurrentModificationException。</p>
+<p>那为什么it.remove又是正常的，我们再跟入ArrayList的迭代器实现中的remove方法：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">remove</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (lastRet &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException();</span><br><span class="line">    checkForComodification();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        ArrayList.<span class="keyword">this</span>.remove(lastRet);</span><br><span class="line">        cursor = lastRet;</span><br><span class="line">        lastRet = -<span class="number">1</span>;</span><br><span class="line">        expectedModCount = modCount; <span class="comment">// 注意这里</span></span><br><span class="line">    &#125; <span class="keyword">catch</span> (IndexOutOfBoundsException ex) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ConcurrentModificationException();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>是不是会突然恍然大悟，迭代器中的实现将expectedModCount = modCount又给变成最新的修改值了，而下一次的next方法就会正常执行。</p>
+<h2 id="思考"><a href="#思考" class="headerlink" title="思考"></a>思考</h2><p>使用modCount的作用主要是为了判断发生不正常的修改，而使用list.remove()就会发生，因为在多处会发生修改，不单只会在迭代时还可以在其他任意地方，甚至在多线程环境下造成混乱，而抛出此异常也是给开发人员警告。<br>而JDK的设计人员想引导开发人员使用迭代器remove()，我想主要是使用时只会在迭代元素时，而且迭代器本身有状态判断，基本不会造成其他问题，所以像迭代器remove()操作基本可用。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://yoursite.com/2019/01/10/ArrayList的迭代删除/" data-id="cjqqewdr80000ps1i1p8lrpjv" class="article-share-link">分享</a>
+      
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ArrayList-ConcurrentModificationException/">ArrayList ConcurrentModificationException</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+ 
+
+
+  
     <article id="post-深入理解Java监视器（Monitor）" class="article article-type-post" itemscope="" itemprop="blogPost">
   <div class="article-meta">
     <a href="/2019/01/05/深入理解Java监视器（Monitor）/" class="article-date">
@@ -132,7 +189,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/01/05/深入理解Java监视器（Monitor）/" data-id="cjqiujvjc0000kh1ieednx1yp" class="article-share-link">分享</a>
+      <a data-url="http://yoursite.com/2019/01/05/深入理解Java监视器（Monitor）/" data-id="cjqqewdrd0001ps1izq5ap7r3" class="article-share-link">分享</a>
       
       
       
@@ -252,7 +309,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/01/04/JVM-JIT编译器概述/" data-id="cjqiujvjg0001kh1igauqv5ac" class="article-share-link">分享</a>
+      <a data-url="http://yoursite.com/2019/01/04/JVM-JIT编译器概述/" data-id="cjqqewdrh0004ps1ikh0qm1hj" class="article-share-link">分享</a>
       
       
       
@@ -277,7 +334,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title categories">分类</h3>
     <div class="widget" id="categories">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/JVM/">JVM</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java并发编程/">Java并发编程</a><span class="category-list-count">1</span></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/JVM/">JVM</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java并发编程/">Java并发编程</a><span class="category-list-count">2</span></li></ul>
     </div>
   </div>
 
@@ -287,7 +344,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title tagcloud">标签云</h3>
     <div class="widget tagcloud">
-      <a href="/tags/JVM-JIT/" style="font-size: 14px;">JVM JIT</a> <a href="/tags/Monitor-并发-锁/" style="font-size: 14px;">Monitor 并发 锁</a>
+      <a href="/tags/ArrayList-ConcurrentModificationException/" style="font-size: 14px;">ArrayList ConcurrentModificationException</a> <a href="/tags/JVM-JIT/" style="font-size: 14px;">JVM JIT</a> <a href="/tags/Monitor-并发-锁/" style="font-size: 14px;">Monitor 并发 锁</a>
     </div>
   </div>
 
@@ -297,6 +354,10 @@
     <h3 class="widget-title recent-posts">最新文章</h3>
     <div class="widget">
       <ul>
+        
+          <li>
+            <a href="/2019/01/10/ArrayList的迭代删除/">ArrayList的迭代删除</a>
+          </li>
         
           <li>
             <a href="/2019/01/05/深入理解Java监视器（Monitor）/">深入理解Java监视器（Monitor）</a>
@@ -315,7 +376,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title archive">归档</h3>
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">January 2019</a><span class="archive-list-count">2</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">January 2019</a><span class="archive-list-count">3</span></li></ul>
     </div>
   </div>
 
