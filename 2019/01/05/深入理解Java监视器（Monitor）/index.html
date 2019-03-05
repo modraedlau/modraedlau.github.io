@@ -19,12 +19,10 @@
 <meta property="og:site_name" content="Modraed Lau&#39;s blog">
 <meta property="og:description" content="管程我们知道Java中的重量锁是由监视器来实现的，那什么是监视器，监视器又称管程，我们先来看下维基百科上对“管程”的描述：  管程 (英语：Monitors，也称为监视器) 是一种程序结构，结构内的多个子程序（对象或模块）形成的多个工作线程互斥访问共享资源。这些共享资源一般是硬体装置或一群变数。管程实现了在一个时间点，最多只有一个线程在执行管程的某个子程序。与那些通过修改数据结构实现互斥访问的并发">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://yoursite.com/2019/01/05/深入理解Java监视器（Monitor）/monitor.png">
 <meta property="og:updated_time" content="2019-01-05T12:48:00.443Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="深入理解Java监视器（Monitor）">
 <meta name="twitter:description" content="管程我们知道Java中的重量锁是由监视器来实现的，那什么是监视器，监视器又称管程，我们先来看下维基百科上对“管程”的描述：  管程 (英语：Monitors，也称为监视器) 是一种程序结构，结构内的多个子程序（对象或模块）形成的多个工作线程互斥访问共享资源。这些共享资源一般是硬体装置或一群变数。管程实现了在一个时间点，最多只有一个线程在执行管程的某个子程序。与那些通过修改数据结构实现互斥访问的并发">
-<meta name="twitter:image" content="http://yoursite.com/2019/01/05/深入理解Java监视器（Monitor）/monitor.png">
   
     <link rel="alternate" href="/atom.xml" title="Modraed Lau&#39;s blog" type="application/atom+xml">
   
@@ -153,7 +151,7 @@
 <li>_WaitSet：线程被wait()后，将会被放入WaitSet中。放入WaitSet中的线程被notify/notifyAll后，将会进入cxq或EntryList中。</li>
 </ul>
 <p>画了一张图来理解下：</p>
-<img src="/2019/01/05/深入理解Java监视器（Monitor）/monitor.png" title="监视器">
+
 <hr>
 <p>然后我们可以看下objectMonitor.cpp的核心内容，还好这份源码中也提供了一些注释，我们可以从注释出发，了解其中思路。我把注释进行了翻译和整理：</p>
 <ul>

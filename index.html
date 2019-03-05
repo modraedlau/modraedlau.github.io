@@ -203,7 +203,7 @@
 <li>_WaitSet：线程被wait()后，将会被放入WaitSet中。放入WaitSet中的线程被notify/notifyAll后，将会进入cxq或EntryList中。</li>
 </ul>
 <p>画了一张图来理解下：</p>
-<img src="/2019/01/05/深入理解Java监视器（Monitor）/monitor.png" title="监视器">
+
 <hr>
 <p>然后我们可以看下objectMonitor.cpp的核心内容，还好这份源码中也提供了一些注释，我们可以从注释出发，了解其中思路。我把注释进行了翻译和整理：</p>
 <ul>
