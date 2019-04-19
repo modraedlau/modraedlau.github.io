@@ -99,6 +99,172 @@
         
           <section id="main">
   
+    <article id="post-JDK动态代理接口数量限制" class="article article-type-post" itemscope="" itemprop="blogPost">
+  <div id="articleInner" class="clearfix post-1016 post type-post status-publish format-standard has-post-thumbnail hentry category-template-2 category-uncategorized tag-codex tag-edge-case tag-featured-image tag-image tag-template">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="thumb" itemprop="name">
+      <a class="article-title" href="/2019/04/20/JDK动态代理接口数量限制/">JDK动态代理接口数量限制</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-meta">
+      
+	<a href="/2019/04/20/JDK动态代理接口数量限制/" class="article-date">
+	  <time datetime="2019-04-19T16:02:02.000Z" itemprop="datePublished">April 20, 2019</time>
+	</a>
+
+      
+	<span class="ico-folder"></span>
+    <a class="article-category-link" href="/categories/设计模式/">设计模式</a>
+ 
+      
+    </div>
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>今天在查JDK动态代理源码的时候发现如下代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Generate a proxy class.  Must call the checkProxyAccess method</span></span><br><span class="line"><span class="comment"> * to perform permission checks before calling this.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> Class&lt;?&gt; getProxyClass0(ClassLoader loader,</span><br><span class="line">                                       Class&lt;?&gt;... interfaces) &#123;</span><br><span class="line">    <span class="keyword">if</span> (interfaces.length &gt; <span class="number">65535</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"interface limit exceeded"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// If the proxy class defined by the given loader implementing</span></span><br><span class="line">    <span class="comment">// the given interfaces exists, this will simply return the cached copy;</span></span><br><span class="line">    <span class="comment">// otherwise, it will create the proxy class via the ProxyClassFactory</span></span><br><span class="line">    <span class="keyword">return</span> proxyClassCache.get(loader, interfaces);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>可以看到的是JDK动态代理中要求目标类实现的接口数量不能超过65535个，这是为什么呢？</p>
+<h2 id="分析"><a href="#分析" class="headerlink" title="分析"></a>分析</h2><p>我们先通过Proxy的newProxyInstance的源码追踪下，可以发现构建代理类的核心代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">* Look up or generate the designated proxy class.</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line">Class&lt;?&gt; cl = getProxyClass0(loader, intfs);</span><br></pre></td></tr></table></figure></p>
+<p>再跟踪到getProxyClass0的代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Generate a proxy class.  Must call the checkProxyAccess method</span></span><br><span class="line"><span class="comment"> * to perform permission checks before calling this.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> Class&lt;?&gt; getProxyClass0(ClassLoader loader,</span><br><span class="line">                                       Class&lt;?&gt;... interfaces) &#123;</span><br><span class="line">    <span class="keyword">if</span> (interfaces.length &gt; <span class="number">65535</span>) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"interface limit exceeded"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// If the proxy class defined by the given loader implementing</span></span><br><span class="line">    <span class="comment">// the given interfaces exists, this will simply return the cached copy;</span></span><br><span class="line">    <span class="comment">// otherwise, it will create the proxy class via the ProxyClassFactory</span></span><br><span class="line">    <span class="keyword">return</span> proxyClassCache.get(loader, interfaces);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>从getProxyClass0的代码我们可以中，如果没有缓存中没有对应代理类，会由ProxyClassFactory来创建代理类。<br>那么我们继续跟进到ProxyClassFactory中的代码，在其apply方法中我们可以发现如下代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment"> * Generate the specified proxy class.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">byte</span>[] proxyClassFile = ProxyGenerator.generateProxyClass(</span><br><span class="line">    proxyName, interfaces, accessFlags);</span><br></pre></td></tr></table></figure></p>
+<p>那么创建代理内会交由ProxyGenerator的generateProxyClass方法，那我们再跟进到ProxyGenerator中。<br>在ProxyGenerator中我们可以发现generateClassFile方法，此方法就是用来写代理类文件的，在这里我们可以看到有写字节码的代码：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">var14.writeInt(-<span class="number">889275714</span>);</span><br><span class="line">var14.writeShort(<span class="number">0</span>);</span><br><span class="line">var14.writeShort(<span class="number">49</span>);</span><br><span class="line"><span class="keyword">this</span>.cp.write(var14);</span><br><span class="line">var14.writeShort(<span class="keyword">this</span>.accessFlags);</span><br><span class="line">var14.writeShort(<span class="keyword">this</span>.cp.getClass(dotToSlash(<span class="keyword">this</span>.className)));</span><br><span class="line">var14.writeShort(<span class="keyword">this</span>.cp.getClass(<span class="string">"java/lang/reflect/Proxy"</span>));</span><br><span class="line">var14.writeShort(<span class="keyword">this</span>.interfaces.length);</span><br><span class="line">Class[] var17 = <span class="keyword">this</span>.interfaces;</span><br></pre></td></tr></table></figure></p>
+<p>可以很明显的看到接口长度是使用writeShort来写入的，我们再结合字节码文件的基本结构看看：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">类型</th>
+<th style="text-align:center">名称</th>
+<th style="text-align:center">说明</th>
+<th style="text-align:center">长度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">u4</td>
+<td style="text-align:center">magic</td>
+<td style="text-align:center">魔数，识别Class文件格式</td>
+<td style="text-align:center">4个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">minor_version</td>
+<td style="text-align:center">副版本号</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">major_version</td>
+<td style="text-align:center">主版本号</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">constant_pool_count</td>
+<td style="text-align:center">常量池计算器</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">cp_info</td>
+<td style="text-align:center">constant_pool</td>
+<td style="text-align:center">常量池</td>
+<td style="text-align:center">n个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">access_flags</td>
+<td style="text-align:center">访问标志</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">this_class</td>
+<td style="text-align:center">类索引</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">super_class</td>
+<td style="text-align:center">父类索引</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">interfaces_count</td>
+<td style="text-align:center">接口计数器</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">interfaces</td>
+<td style="text-align:center">接口索引集合</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">fields_count</td>
+<td style="text-align:center">字段个数</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">field_info</td>
+<td style="text-align:center">fields</td>
+<td style="text-align:center">字段集合</td>
+<td style="text-align:center">n个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">methods_count</td>
+<td style="text-align:center">方法计数器</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">method_info</td>
+<td style="text-align:center">methods</td>
+<td style="text-align:center">方法集合</td>
+<td style="text-align:center">n个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">u2</td>
+<td style="text-align:center">attributes_count</td>
+<td style="text-align:center">附加属性计数器</td>
+<td style="text-align:center">2个字节</td>
+</tr>
+<tr>
+<td style="text-align:center">attribute_info</td>
+<td style="text-align:center">attributes</td>
+<td style="text-align:center">附加属性集合</td>
+<td style="text-align:center">n个字节</td>
+</tr>
+</tbody>
+</table>
+<p>可以看到的是字节码文件中接口计数器使用的2个字节，这也说明了其实不管是不是动态代理类，类的接口的数量都不能大于65535个！</p>
+
+      
+    </div>
+    <footer class="entry-meta entry-footer">
+      
+	<span class="ico-folder"></span>
+    <a class="article-category-link" href="/categories/设计模式/">设计模式</a>
+
+      
+  <span class="ico-tags"></span>
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/设计模式-动态代理-接口/">设计模式 动态代理 接口</a></li></ul>
+
+      
+    </footer>
+    <hr class="entry-footer-hr">
+  </div>
+  
+</article>
+
+<!-- Table of Contents -->
+
+  
     <article id="post-ArrayList的迭代删除" class="article article-type-post" itemscope="" itemprop="blogPost">
   <div id="articleInner" class="clearfix post-1016 post type-post status-publish format-standard has-post-thumbnail hentry category-template-2 category-uncategorized tag-codex tag-edge-case tag-featured-image tag-image tag-template">
     
@@ -473,6 +639,18 @@
               <div class="widget-entry-summary" style="margin: 0;">
             
 
+              <h6 style="margin: 0;"><a href="/2019/04/20/JDK动态代理接口数量限制/">JDK动态代理接口数量限制</a></h6>
+              <span>April 20, 2019</span>
+            </div>
+
+          </li>
+        
+          <li class="clearfix">
+
+            
+              <div class="widget-entry-summary" style="margin: 0;">
+            
+
               <h6 style="margin: 0;"><a href="/2019/01/10/ArrayList的迭代删除/">ArrayList的迭代删除</a></h6>
               <span>January 10, 2019</span>
             </div>
@@ -512,7 +690,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Categories</h3>
     <div class="widget">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/JVM/">JVM</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java并发编程/">Java并发编程</a><span class="category-list-count">2</span></li></ul>
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/JVM/">JVM</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java并发编程/">Java并发编程</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/设计模式/">设计模式</a><span class="category-list-count">1</span></li></ul>
     </div>
   </div>
 
@@ -522,7 +700,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tags</h3>
     <div class="widget">
-      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/ArrayList-ConcurrentModificationException/">ArrayList ConcurrentModificationException</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/JVM-JIT/">JVM JIT</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Monitor-并发-锁/">Monitor 并发 锁</a><span class="tag-list-count">1</span></li></ul>
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/ArrayList-ConcurrentModificationException/">ArrayList ConcurrentModificationException</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/JVM-JIT/">JVM JIT</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Monitor-并发-锁/">Monitor 并发 锁</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/设计模式-动态代理-接口/">设计模式 动态代理 接口</a><span class="tag-list-count">1</span></li></ul>
     </div>
   </div>
 
@@ -532,7 +710,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">Tag Cloud</h3>
     <div class="widget tagcloud">
-      <a href="/tags/ArrayList-ConcurrentModificationException/" style="font-size: 10px;">ArrayList ConcurrentModificationException</a> <a href="/tags/JVM-JIT/" style="font-size: 10px;">JVM JIT</a> <a href="/tags/Monitor-并发-锁/" style="font-size: 10px;">Monitor 并发 锁</a>
+      <a href="/tags/ArrayList-ConcurrentModificationException/" style="font-size: 10px;">ArrayList ConcurrentModificationException</a> <a href="/tags/JVM-JIT/" style="font-size: 10px;">JVM JIT</a> <a href="/tags/Monitor-并发-锁/" style="font-size: 10px;">Monitor 并发 锁</a> <a href="/tags/设计模式-动态代理-接口/" style="font-size: 10px;">设计模式 动态代理 接口</a>
     </div>
   </div>
 
@@ -542,7 +720,7 @@
     <h3 class="widget-title">Archives</h3>
 
     <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">January 2019</a><span class="archive-list-count">3</span></li></ul>
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/04/">April 2019</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/01/">January 2019</a><span class="archive-list-count">3</span></li></ul>
     </div>
   </div>
 
